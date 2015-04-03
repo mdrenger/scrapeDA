@@ -81,12 +81,12 @@ class MeetingFinder(object):
 
         return iterator()
 
-    def get_meetings(self):
+    def get_meetings(self, committee=''):
         scrape_from = '01.01.{}'.format(self.year)
         scrape_to = '31.01.{}'.format(self.year)
 
         url = urljoin(self.base_url, 'recherche.php')
-        params = {'suchbegriffe': '', 'select_gremium': '',
+        params = {'suchbegriffe': '', 'select_gremium': committee,
                   'datum_von': scrape_from, 'datum_bis': scrape_to,
                   'startsuche': 'Suche+starten'}
 
