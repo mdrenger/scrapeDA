@@ -35,27 +35,23 @@ except locale.Error:
     print("Setting the required german locale failed. Please install!")
     raise
 
-COMMITTEES = set([
-    'AEA',  # Akteneinsichtsausschuss
-    'AER',  # Ältestenrat
-    'Bau',  # Ausschuss für Bauen, Stadtplanung, Verkehr und Liegenschaften
-    'Schul',  # Ausschuss für Bildung und Schule
-    'SportA',  # Ausschuss für Familie, Kinderbetreuung und Sport bis 30.09.2011
-    'GleichA',  # Ausschuss für Gleichstellung und interkulturelle Fragen bis 30.09.2011
-    'LiegenA',  # Ausschuss für Liegenschaften und Wirtschaftsförderung bis 30.09.2011
-    'SozialA',  # Ausschuss für Soziales (einschl. Gleichstellung, Interkulturelles, Familie und Kinderbetreuung)
-    'Sport',  # Ausschuss für Sport und Gesundheit (einschl. öffentliche Einrichtungen und Ordnungswesen)
-    'UmweltA',  # Ausschuss für Umweltschutz und Nachhaltigkeit
-    'Wifoe',  # Ausschuss für Wirtschaftsförderung und Wissenschaft
-    'HFA',  # Haupt- und Finanzausschuss (einschl. Recht, Stellenplan und Beteiligungen)
-    'JHA',  # Jugendhilfeausschuss
-    'KulturA',  # Kulturausschuss
-    'Mag',  # Magistrat der Stadt Darmstadt
-    'OBW',  # Ortsbeirat Darmstadt-Wixhausen
-    'BauA',  # Planungs-, Bau- und Verkehrsausschuss bis 30.09.2011
-    'Stavo',  # Stadtverordnetenversammlung
-    'WahlA',  # Wahlvorbereitungsausschuss
-])
+
+def get_committees(domain='darmstadt'):
+    base_url = 'http://{}.more-rubin1.de/'.format(domain)
+    url = urljoin(base_url, 'recherche.php')
+
+    html = requests.get(url).text
+    soup = BeautifulSoup(html)
+
+    select = soup.find('select', {'id': 'select_gremium'})
+    if select:
+        committees = {option.attrs['value']: option.string
+                      for option in select.findChildren()
+                      if option.attrs['value']}
+    else:
+        committees = {}
+
+    return committees
 
 
 class Form(object):
