@@ -116,12 +116,13 @@ class MeetingFinder(object):
                 exhausted = True
 
 
-class RubinScraper(object):
-    def __init__(self, domain='darmstadt'):
-        self.base_url = 'http://{}.more-rubin1.de/'.format(domain)
+class RISInformation(object):
 
-    def has_website_changed(self, since):
-        html = requests.get(self.base_url).text
+    BASE_URL = None
+
+    @classmethod
+    def has_website_changed(cls, since):
+        html = requests.get(cls.BASE_URL).text
         soup = BeautifulSoup(html)
 
         text = soup.find('div', {'class': 'aktualisierung'}).get_text()
@@ -133,12 +134,26 @@ class RubinScraper(object):
             return True
         return False
 
-    def get_metadata(self, meeting_id):
+
+class DarmstadtRIS(RISInformation):
+
+    BASE_URL = 'http://darmstadt.more-rubin1.de/'
+
+
+class RubinScraper(object):
+    def __init__(self, meeting_id, *, domain='darmstadt'):
+        self.base_url = 'http://{}.more-rubin1.de/'.format(domain)
+
+        if not meeting_id:
+            raise ValueError("Not a valid meeting ID!")
+        self.meeting_id = meeting_id
+
+    def get_metadata(self):
         url = urljoin(self.base_url, 'sitzungen_top.php')
-        html = requests.get(url, params={"sid": meeting_id}).text
+        html = requests.get(url, params={"sid": self.meeting_id}).text
         soup = BeautifulSoup(html)
 
-        meeting = {'sid': meeting_id, 'title': soup.find('b', {'class': 'Suchueberschrift'}).get_text()}
+        meeting = {'sid': self.meeting_id, 'title': soup.find('b', {'class': 'Suchueberschrift'}).get_text()}
 
         table = soup.find('div', {'class': 'InfoBlock'}).find('table')
 
@@ -167,7 +182,7 @@ class RubinScraper(object):
                     meeting['end'] = str(end)
                     meeting['duration'] = str(int(duration.seconds / 60))
                 else:
-                    print('Unparseable date/time info in meeting {}: "{}"'.format(meeting_id, value),
+                    print('Unparseable date/time info in meeting {}: "{}"'.format(self.meeting_id, value),
                           file=sys.stderr)
             elif key == 'Raum:':
                 meeting['location'] = value
@@ -176,14 +191,14 @@ class RubinScraper(object):
 
         return meeting
 
-    def get_toc(self, session_id):
+    def get_toc(self):
         url = urljoin(self.base_url, 'sitzungen_top.php')
-        html = requests.get(url, params={"sid": session_id}).text
+        html = requests.get(url, params={"sid": self.meeting_id}).text
         soup = BeautifulSoup(html)
 
         table = soup.find('div', {'id': 'ajax_sitzungsmappe'}).table
         toc = self.parse_table(table)
-        for entry in self.parse_toc(session_id, toc):
+        for entry in self.parse_toc(toc):
             yield entry
 
     def parse_table(self, table):
@@ -207,7 +222,7 @@ class RubinScraper(object):
 
         return urljoin(self.base_url, form.toURL())
 
-    def parse_toc(self, meeting_id, toc):
+    def parse_toc(self, toc):
         count = 0
         vorlagen_template = "Vorlage: SV-"
         first_length = len(vorlagen_template)
@@ -228,7 +243,7 @@ class RubinScraper(object):
                 gesamt_id = entry[4][10:entry[4].index(',')]
 
             attachment_link = entry[6]
-            yield {'sid': meeting_id, 'status': entry[0], 'topnumber': entry[1],
+            yield {'sid': self.meeting_id, 'status': entry[0], 'topnumber': entry[1],
                    'column3': entry[2], 'details_link': entry[3],
                    'title_full': entry[4], 'document_link': entry[5],
                    'attachment_link': attachment_link,
@@ -236,7 +251,7 @@ class RubinScraper(object):
                    'column10': entry[9], 'year': jahr, 'billnumber': vorlnr,
                    'billid': gesamt_id, 'position': count}
 
-    def scrape_attachments_page(self, session_id, agenda_item_id, attachments_page_url):
+    def scrape_attachments_page(self, agenda_item_id, attachments_page_url):
         print("scrape Attachment " + attachments_page_url)
         html = requests.get(attachments_page_url).text
         soup = BeautifulSoup(html)
@@ -256,7 +271,7 @@ class RubinScraper(object):
                 form = Form(forms['action'], values)
                 url = self.base_url + form.toURL()
 
-                yield ('OK', {'sid': session_id,
+                yield ('OK', {'sid': self.meeting_id,
                               'agenda_item_id': agenda_item_id,
                               'attachment_title': title,
                               'attachment_file_url': url})
@@ -288,13 +303,13 @@ if __name__ == '__main__':
     t_lastaccess.create_column('scraped_at', sqlalchemy.DateTime)
     database['updates'].insert({'scraped_at': datetime.now()})
 
-    scraper = RubinScraper()
     for meeting_id in MeetingFinder(2006, 'darmstadt'):
         if not meeting_id:
             continue
         print(meeting_id)
+        scraper = RubinScraper(meeting_id)
 
-        metadata = scraper.get_metadata(meeting_id)
+        metadata = scraper.get_metadata()
 
         t_sessions = database['sessions']
         t_sessions.insert(metadata)
@@ -303,11 +318,11 @@ if __name__ == '__main__':
         errortable = database['404attachments']
         attachments = database['attachments']
 
-        for entry in scraper.get_toc(meeting_id):
+        for entry in scraper.get_toc():
             tab.insert(entry)
 
             if "http://" in entry['attachment_link']:
-                for (code, attachment) in scraper.scrape_attachments_page(meeting_id, entry['billid'],
+                for (code, attachment) in scraper.scrape_attachments_page(entry['billid'],
                                                                           entry['attachment_link']):
                     if code == '404':
                         errortable.insert(attachment)
