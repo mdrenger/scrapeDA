@@ -239,12 +239,12 @@ class RubinScraper(object):
                 gesamt_id = entry[4][10:entry[4].index(',')]
 
             attachment_link = entry[6]
-            yield {'sid': self.meeting_id, 'status': entry[0], 'topnumber': entry[1],
-                   'column3': entry[2], 'details_link': entry[3],
-                   'title_full': entry[4], 'document_link': entry[5],
-                   'attachment_link': attachment_link,
-                   'decision_link': entry[7], 'column9': entry[8],
-                   'column10': entry[9], 'year': jahr, 'billnumber': vorlnr,
+            yield {'sid': self.meeting_id, 'agenda_item_state_of_secrecy': entry[0], 'agenda_item_position': entry[1],
+                   'undocumented_column3': entry[2], 'agenda_item_details_link': entry[3],
+                   'agenda_item_full_title': entry[4], 'agenda_item_document_link': entry[5],
+                   'agenda_item_attachment_link': attachment_link,
+                   'decision_link': entry[7], 'undocumented_column9': entry[8],
+                   'undocumented_column10': entry[9], 'year': jahr, 'billnumber': vorlnr,
                    'billid': gesamt_id, 'position': count}
 
     def scrape_attachments_page(self, agenda_item_id, attachments_page_url):
@@ -317,9 +317,9 @@ if __name__ == '__main__':
         for entry in scraper.get_toc():
             tab.insert(entry)
 
-            if "http://" in entry['attachment_link']:
+            if "http://" in entry['agenda_item_attachment_link']:
                 for (code, attachment) in scraper.scrape_attachments_page(entry['billid'],
-                                                                          entry['attachment_link']):
+                                                                          entry['agenda_item_attachment_link']):
                     if code == '404':
                         errortable.insert(attachment)
                     elif code == 'OK':
