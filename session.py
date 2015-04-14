@@ -74,6 +74,9 @@ class MeetingFinder(object):
         self.year = year
         self.base_url = 'http://{}.more-rubin1.de/'.format(domain)
 
+        self.startdate = datetime(year, 1, 1)
+        self.enddate = datetime(year, 12, 31)
+
     def __iter__(self):
         def iterator():
             for session in self.get_meetings():
@@ -82,8 +85,8 @@ class MeetingFinder(object):
         return iterator()
 
     def get_meetings(self, committee=''):
-        scrape_from = '01.01.{}'.format(self.year)
-        scrape_to = '31.01.{}'.format(self.year)
+        scrape_from = self.startdate.strftime('%d.%m.%Y')
+        scrape_to = self.enddate.strftime('%d.%m.%Y')
 
         url = urljoin(self.base_url, 'recherche.php')
         params = {'suchbegriffe': '', 'select_gremium': committee,
