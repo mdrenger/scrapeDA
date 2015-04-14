@@ -26,7 +26,7 @@ import requests
 import sqlalchemy
 from bs4 import BeautifulSoup
 from datetime import datetime
-from requests.compat import urljoin
+from requests.compat import urljoin, urlencode
 
 
 try:
@@ -52,19 +52,6 @@ def get_committees(domain='darmstadt'):
         committees = {}
 
     return committees
-
-
-class Form(object):
-    def __init__(self, action, values=None):
-        self.action = action
-        self.values = values or []
-
-    def toURL(self):
-        parameters = []
-        for key, value in self.values:
-            parameters.append('{}={}'.format(key, value))
-
-        return "{}?{}".format(self.action, '&'.join(parameters))
 
 
 class MeetingFinder(object):
@@ -211,12 +198,12 @@ class RubinScraper(object):
         return values
 
     def get_url_from_form(self, td):
-        form = Form(td.form['action'])
+        parameters = {tag['name']: tag['value']
+                      for tag in td.form.find_all('input', {'type': 'hidden'})}
 
-        for tag in td.form.find_all('input', {'type': 'hidden'}):
-            form.values.append((tag['name'], tag['value']))
+        file_with_parameters = '?'.join((td.form['action'], urlencode(parameters)))
 
-        return urljoin(self.base_url, form.toURL())
+        return urljoin(self.base_url, file_with_parameters)
 
     def parse_toc(self, toc):
         count = 0
@@ -260,12 +247,15 @@ class RubinScraper(object):
         else:
             for forms in soup.find_all('form'):
                 title = forms.get_text()
-                values = []
-                for val in forms.find_all('input', {'type': 'hidden'}):
-                    values.append([val['name'], val['value']])
 
-                form = Form(forms['action'], values)
-                url = self.base_url + form.toURL()
+                parameters = {form['name']: form['value']
+                              for form
+                              in forms.find_all('input', {'type': 'hidden'})}
+
+                file_with_parameters = '?'.join((forms['action'],
+                                                 urlencode(parameters)))
+
+                url = self.base_url + file_with_parameters
 
                 yield ('OK', {'sid': self.meeting_id,
                               'agenda_item_id': agenda_item_id,
