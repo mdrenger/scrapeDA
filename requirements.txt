@@ -2,4 +2,3 @@ beautifulsoup4
 dataset
 sqlalchemy
 requests
-

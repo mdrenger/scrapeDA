@@ -1,0 +1,17 @@
+language: python
+python:
+  - "3.3"
+  - "3.4"
+
+before_install:
+  - sudo apt-get update && sudo apt-get --reinstall install -qq language-pack-en language-pack-de
+
+install: 
+  - "pip install -r requirements.txt"
+  - "pip install -r requirements-test.txt"
+  - "pip install pep8"
+  
+script: 
+  - "pep8 --ignore=E501 session.py"
+  - "py.test tests.py"
+
