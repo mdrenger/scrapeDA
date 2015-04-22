@@ -181,11 +181,12 @@ class RubinScraper(object):
         url = urljoin(self.base_url, 'sitzungen_top.php')
         html = requests.get(url, params={"sid": self.meeting_id}).text
         soup = BeautifulSoup(html)
-
-        table = soup.find('div', {'id': 'ajax_sitzungsmappe'}).table
-        toc = self.parse_table(table)
-        for entry in self.parse_toc(toc):
-            yield entry
+        result =soup.find('div', {'id': 'ajax_sitzungsmappe'})
+        if result is not None:
+            table = result.table
+            toc = self.parse_table(table)
+            for entry in self.parse_toc(toc):
+                yield entry
 
     def parse_table(self, table):
         values = []
