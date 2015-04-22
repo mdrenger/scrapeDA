@@ -20,6 +20,7 @@
 import locale
 import re
 import sys
+import argparse
 
 import dataset
 import requests
@@ -286,13 +287,8 @@ def get_scraping_time(database):
     return db_datetime
 
 
-if __name__ == '__main__':
-    database = dataset.connect('sqlite:///darmstadt.db')
-    t_lastaccess = database['updates']
-    t_lastaccess.create_column('scraped_at', sqlalchemy.DateTime)
-    database['updates'].insert({'scraped_at': datetime.now()})
-
-    for meeting_id in MeetingFinder(2006, 'darmstadt'):
+def scrape(domain, year):
+    for meeting_id in MeetingFinder(year, domain):
         if not meeting_id:
             continue
         print(meeting_id)
@@ -318,4 +314,24 @@ if __name__ == '__main__':
                     elif code == 'OK':
                         attachments.insert(attachment)
 
+if __name__ == '__main__':
+    database = dataset.connect('sqlite:///darmstadt.db')
+    t_lastaccess = database['updates']
+    t_lastaccess.create_column('scraped_at', sqlalchemy.DateTime)
+    database['updates'].insert({'scraped_at': datetime.now()})
+
+    parser = argparse.ArgumentParser(prog='RubinScraper',
+                                     description='Scraping-Software für die more-rubin1.de Plattform, entwickelt '
+                                                 'durch Offenes Darmstadt und den PyStaDa.')
+
+    now = datetime.now()
+
+    parser.add_argument('-d', '--domain', dest='domain',
+                        required=True)
+    parser.add_argument('-y', '--year', dest='year', type=int,
+                        required=True, choices=range(2005, now.year + 1))
+
+    args = parser.parse_args()
+
+    scrape(args.domain, args.year)
     export_from_db(database)
